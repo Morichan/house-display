@@ -1,0 +1,8 @@
+[package]
+name = "house-display"
+version = "0.0.1"
+authors = ["Morichan <nintendo698@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+rocket = "0.4.0"
