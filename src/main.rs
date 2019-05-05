@@ -2,9 +2,13 @@
 
 #[macro_use] extern crate rocket;
 
+extern crate house_display;
+pub use house_display::timetable::api_agent::ApiAgent;
+
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
+fn index() -> String {
+    let api = ApiAgent::new();
+    return api.search_train_time()
 }
 
 fn main() {
