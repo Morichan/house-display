@@ -2,7 +2,7 @@ extern crate reqwest;
 
 use std::io::Read;
 use url::Url;
-use chrono::{DateTime, Local};
+use chrono::Local;
 
 pub struct ApiAgent {
     ekispert_url: String,
@@ -27,6 +27,7 @@ impl ApiAgent {
 
     fn create_url(&self) -> String {
         let mut url = Url::parse(&self.ekispert_url).unwrap();
+        let now = self.now_time();
 
         url.query_pairs_mut().clear()
             .append_pair("dep", "豊島園(都営線)")
@@ -34,11 +35,11 @@ impl ApiAgent {
             .append_pair("arr", "都庁前")
             .append_pair("arr_code", "29213")
 
-            .append_pair("yyyymm", "201905")
-            .append_pair("day", "7")
-            .append_pair("hour", "7")
-            .append_pair("minute10", "5")
-            .append_pair("minute1", "5")
+            .append_pair("yyyymm", &now.year_and_month)
+            .append_pair("day", &now.day)
+            .append_pair("hour", &now.hour)
+            .append_pair("minute10", &now.min10)
+            .append_pair("minute1", &now.min1)
 
             .append_pair("locale", "ja")
             .append_pair("connect", "true")
@@ -86,8 +87,6 @@ struct Now {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use url::percent_encoding::utf8_percent_encode;
-    use url::form_urlencoded;
 
     #[test]
     fn get_now_time() {
@@ -103,9 +102,17 @@ mod tests {
 
     #[test]
     fn create_ekispert_url() {
-        let expected = Url::parse("https://roote.ekispert.net/ja/result?dep=豊島園%28都営線%29&dep_code=22836&arr=都庁前&arr_code=29213&yyyymm=201905&day=7&hour=7&minute10=5&minute1=5&locale=ja&connect=true&highway=true&liner=true&local=true&plane=true&shinkansen=true&ship=true&sort=time&submit_btn=検索&surcharge=3&ticket_type=0&transfer=2&type=dep&utf8=✓").unwrap();
+        let obj = ApiAgent::new();
+        let test_time = obj.now_time();
+        let expected = Url::parse(&format!(
+                "https://roote.ekispert.net/ja/result?dep=豊島園%28都営線%29&dep_code=22836&arr=都庁前&arr_code=29213&yyyymm={}&day={}&hour={}&minute10={}&minute1={}&locale=ja&connect=true&highway=true&liner=true&local=true&plane=true&shinkansen=true&ship=true&sort=time&submit_btn=検索&surcharge=3&ticket_type=0&transfer=2&type=dep&utf8=%E2%9C%93",
+                test_time.year_and_month,
+                test_time.day,
+                test_time.hour,
+                test_time.min10,
+                test_time.min1)).unwrap();
 
-        let actual = Url::parse(&ApiAgent::new().create_url()).unwrap();
+        let actual = Url::parse(&obj.create_url()).unwrap();
 
         assert_eq!(expected, actual);
     }
