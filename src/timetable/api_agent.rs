@@ -2,6 +2,7 @@ extern crate reqwest;
 
 use std::io::Read;
 use url::Url;
+use chrono::{DateTime, Local};
 
 pub struct ApiAgent {
     ekispert_url: String,
@@ -58,5 +59,44 @@ impl ApiAgent {
             .append_pair("utf8", "✓");
 
         return String::from(url.as_str());
+    }
+
+    fn now_time(&self) -> Now {
+        let local_now = Local::now();
+        let minutes_string = local_now.format("%M").to_string();
+        let mut minutes = minutes_string.chars();
+
+        return Now {
+            year_and_month: local_now.format("%Y%m").to_string(),
+            day: local_now.format("%-d").to_string(),
+            hour: local_now.format("%-H").to_string(),
+            min10: minutes.nth(0).unwrap().to_string(),
+            min1: minutes.nth(0).unwrap().to_string(),
+        };
+    }
+}
+
+struct Now {
+    year_and_month: String,
+    day: String,
+    hour: String,
+    min10: String,
+    min1: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_now_time() {
+        let expected = Local::now();
+
+        let actual = ApiAgent::new().now_time();
+
+        assert_eq!(expected.format("%Y%m").to_string(), actual.year_and_month);
+        assert_eq!(expected.format("%-d").to_string(), actual.day);
+        assert_eq!(expected.format("%-H").to_string(), actual.hour);
+        assert_eq!(expected.format("%M").to_string().to_string(), format!("{}{}", actual.min10, actual.min1));
     }
 }
