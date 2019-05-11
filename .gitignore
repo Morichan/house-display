@@ -5,4 +5,7 @@
 # More information here http://doc.crates.io/guide.html#cargotoml-vs-cargolock
 Cargo.lock
 
+# This is API's access key of Ekispert Web Service
+access_key.txt
+
 *.swp

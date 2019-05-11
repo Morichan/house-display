@@ -3,6 +3,8 @@ extern crate reqwest;
 use std::io::Read;
 use url::Url;
 use chrono::Local;
+use std::fs;
+use std::error::Error;
 
 pub struct ApiAgent {
     ekispert_url: String,
@@ -74,6 +76,12 @@ impl ApiAgent {
             min1: minutes.nth(0).unwrap().to_string(), // 1の位
         };
     }
+
+    fn read_password(&self, filename: &str) -> Result<(), Box<Error>> {
+        let content = fs::read_to_string(filename)?;
+        println!("{}", content);
+        Ok(())
+    }
 }
 
 struct Now {
@@ -115,5 +123,24 @@ mod tests {
         let actual = Url::parse(&obj.create_url()).unwrap();
 
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error")]
+    fn throw_exception_to_read_nothing_file() {
+        let obj = ApiAgent::new();
+
+        if let Err(e) = obj.read_password("This_is_nothing.txt") {
+            panic!("Error: {}", e);
+        }
+    }
+
+    #[test]
+    fn read_file() {
+        let obj = ApiAgent::new();
+
+        if let Err(e) = obj.read_password("access_key.txt") {
+            panic!("Error: {}", e);
+        }
     }
 }
