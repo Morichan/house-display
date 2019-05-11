@@ -8,12 +8,16 @@ use std::error::Error;
 
 pub struct ApiAgent {
     ekispert_url: String,
+    access_key: String,
+    access_key_file_path: String,
 }
 
 impl ApiAgent {
     pub fn new() -> Self {
         ApiAgent {
             ekispert_url: "https://roote.ekispert.net/ja/result".to_string(),
+            access_key: String::new(),
+            access_key_file_path: "access_key.txt".to_string(),
         }
     }
 
@@ -77,9 +81,15 @@ impl ApiAgent {
         };
     }
 
-    fn read_password(&self, filename: &str) -> Result<(), Box<Error>> {
+    fn read_access_key(&mut self) {
+        if let Err(e) = self.read_file(&self.access_key_file_path.to_string()) {
+            panic!("Error: {}", e);
+        }
+    }
+
+    fn read_file(&mut self, filename: &str) -> Result<(), Box<Error>> {
         let content = fs::read_to_string(filename)?;
-        println!("{}", content);
+        self.access_key = content;
         Ok(())
     }
 }
@@ -128,18 +138,18 @@ mod tests {
     #[test]
     #[should_panic(expected = "Error")]
     fn throw_exception_to_read_nothing_file() {
-        let obj = ApiAgent::new();
+        let mut obj = ApiAgent::new();
 
-        if let Err(e) = obj.read_password("This_is_nothing.txt") {
+        if let Err(e) = obj.read_file("This_is_nothing.txt") {
             panic!("Error: {}", e);
         }
     }
 
     #[test]
     fn read_file() {
-        let obj = ApiAgent::new();
+        let mut obj = ApiAgent::new();
 
-        if let Err(e) = obj.read_password("access_key.txt") {
+        if let Err(e) = obj.read_file("access_key.txt") {
             panic!("Error: {}", e);
         }
     }
