@@ -1,13 +1,16 @@
 extern crate reqwest;
+extern crate serde_json;
 
 use std::io::Read;
 use url::Url;
 use chrono::Local;
 use std::fs;
 use std::error::Error;
+use serde_json::Value;
 
 pub struct ApiAgent {
     ekispert_url: String,
+    ekispert_api: String,
     access_key: String,
     access_key_file_path: String,
 }
@@ -16,13 +19,15 @@ impl ApiAgent {
     pub fn new() -> Self {
         ApiAgent {
             ekispert_url: "https://roote.ekispert.net/ja/result".to_string(),
+            ekispert_api: "http://api.ekispert.jp/v1/json/search/course/light".to_string(),
             access_key: String::new(),
             access_key_file_path: "access_key.txt".to_string(),
         }
     }
 
-    pub fn search_train_time(&self) -> String {
-        let mut resp = reqwest::get(&self.create_url()).unwrap();
+    pub fn search_train_time(&mut self) -> String {
+        let mut resp = reqwest::get(&self.create_url(EkispertUrl::CreatingBasedOnWeb))
+            .unwrap();
         let mut s = String::new();
 
         resp.read_to_string(&mut s).unwrap();
@@ -31,7 +36,14 @@ impl ApiAgent {
         return s;
     }
 
-    fn create_url(&self) -> String {
+    fn create_url(&mut self, url: EkispertUrl) -> String {
+        match url {
+            EkispertUrl::GettingFromAPI => self.create_url_to_use_api(),
+            EkispertUrl::CreatingBasedOnWeb => self.create_url_to_scrape(),
+        }
+    }
+
+    fn create_url_to_scrape(&self) -> String {
         let mut url = Url::parse(&self.ekispert_url).unwrap();
         let now = self.now_time();
 
@@ -67,6 +79,30 @@ impl ApiAgent {
         return String::from(url.as_str());
     }
 
+    fn create_url_to_use_api(&mut self) -> String {
+        let mut api = Url::parse(&self.ekispert_api).unwrap();
+        let now = self.now_time();
+
+        self.read_access_key();
+
+        api.query_pairs_mut().clear()
+            .append_pair("key", &self.access_key)
+            .append_pair("from", "22836")
+            .append_pair("to", "29213")
+            .append_pair("date", &format!("{}{}", &now.year_and_month, &now.day))
+            .append_pair("time", &format!("{}{}{}", &now.hour, &now.min10, &now.min1));
+
+        let mut resp = reqwest::get(api.as_str())
+            .unwrap();
+        let mut s = String::new();
+
+        resp.read_to_string(&mut s).unwrap();
+
+        let v: Value = serde_json::from_str(&s).unwrap();
+
+        return v["ResultSet"]["ResourceURI"].to_string().replace('"', "");
+    }
+
     fn now_time(&self) -> Now {
         let local_now = Local::now();
         let minutes_string = local_now.format("%M").to_string();
@@ -85,15 +121,17 @@ impl ApiAgent {
         if let Err(e) = self.read_file(&self.access_key_file_path.to_string()) {
             panic!("Error: {}", e);
         }
+
         let file_lines: Vec<&str> = self.access_key.split_whitespace().collect();
+
         if let Some(line) = file_lines.get(0) {
             self.access_key = line.to_string();
         };
     }
 
     fn read_file(&mut self, filename: &str) -> Result<(), Box<Error>> {
-        let content = fs::read_to_string(filename)?;
-        self.access_key = content;
+        self.access_key = fs::read_to_string(filename)?;
+
         Ok(())
     }
 }
@@ -104,6 +142,11 @@ struct Now {
     hour: String,
     min10: String,
     min1: String,
+}
+
+enum EkispertUrl {
+    GettingFromAPI,
+    CreatingBasedOnWeb,
 }
 
 #[cfg(test)]
@@ -129,7 +172,7 @@ speculate! {
         assert_eq!(expected.format("%M").to_string(), format!("{}{}", actual.min10, actual.min1));
     }
 
-    it "should create ekispert url" {
+    it "should create Ekispert URL" {
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
                 "https://roote.ekispert.net/ja/result?dep=豊島園%28都営線%29&dep_code=22836&arr=都庁前&arr_code=29213&yyyymm={}&day={}&hour={}&minute10={}&minute1={}&locale=ja&connect=true&highway=true&liner=true&local=true&plane=true&shinkansen=true&ship=true&sort=time&submit_btn=検索&surcharge=3&ticket_type=0&transfer=2&type=dep&utf8=%E2%9C%93",
@@ -139,16 +182,48 @@ speculate! {
                 test_time.min10,
                 test_time.min1)).unwrap();
 
-        let actual = Url::parse(&obj.create_url()).unwrap();
+        let actual = Url::parse(&obj.create_url(EkispertUrl::CreatingBasedOnWeb))
+            .unwrap();
 
         assert_eq!(expected, actual);
     }
 
-    #[should_panic(expected = "Error")]
+    it "should create Ekispert API URL" {
+        let test_time = obj.now_time();
+        let expected = Url::parse(&format!(
+                "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
+                test_time.hour,
+                test_time.min10,
+                test_time.min1,
+                test_time.year_and_month,
+                test_time.day)).unwrap();
+
+        let actual = Url::parse(&obj.create_url(EkispertUrl::GettingFromAPI))
+            .unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[ignore]
+    it "should search same web site" {
+        let mut resp = reqwest::get(&obj.create_url(EkispertUrl::CreatingBasedOnWeb))
+            .unwrap();
+        let mut expected = String::new();
+        resp.read_to_string(&mut expected).unwrap();
+
+        let mut resp = reqwest::get(&obj.create_url(EkispertUrl::GettingFromAPI))
+            .unwrap();
+        let mut actual = String::new();
+        resp.read_to_string(&mut actual).unwrap();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[should_panic(expected = "File not found: ")]
     it "should throw exception to read nothing file" {
 
         if let Err(e) = obj.read_file("This_is_nothing.txt") {
-            panic!("Error: {}", e);
+            panic!("File not found: {}", e);
         }
     }
 

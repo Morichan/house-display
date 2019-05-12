@@ -7,7 +7,7 @@ pub use house_display::timetable::api_agent::ApiAgent;
 
 #[get("/")]
 fn index() -> String {
-    let api = ApiAgent::new();
+    let mut api = ApiAgent::new();
     return api.search_train_time();
 }
 
