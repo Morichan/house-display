@@ -9,3 +9,6 @@ rocket = "0.4.0"
 reqwest = "0.9.16"
 url = "*"
 chrono = "*"
+
+[dev-dependencies]
+speculate = "0.1"

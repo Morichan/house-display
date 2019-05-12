@@ -107,14 +107,21 @@ struct Now {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+extern crate speculate;
 
-    #[test]
-    fn get_now_time() {
+#[cfg(test)]
+use speculate::speculate;
+
+#[cfg(test)]
+speculate! {
+    before {
+        let mut obj = ApiAgent::new();
+    }
+
+    it "should get now time" {
         let expected = Local::now();
 
-        let actual = ApiAgent::new().now_time();
+        let actual = obj.now_time();
 
         assert_eq!(expected.format("%Y%m").to_string(), actual.year_and_month);
         assert_eq!(expected.format("%-d").to_string(), actual.day);
@@ -122,9 +129,7 @@ mod tests {
         assert_eq!(expected.format("%M").to_string(), format!("{}{}", actual.min10, actual.min1));
     }
 
-    #[test]
-    fn create_ekispert_url() {
-        let obj = ApiAgent::new();
+    it "should create ekispert url" {
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
                 "https://roote.ekispert.net/ja/result?dep=豊島園%28都営線%29&dep_code=22836&arr=都庁前&arr_code=29213&yyyymm={}&day={}&hour={}&minute10={}&minute1={}&locale=ja&connect=true&highway=true&liner=true&local=true&plane=true&shinkansen=true&ship=true&sort=time&submit_btn=検索&surcharge=3&ticket_type=0&transfer=2&type=dep&utf8=%E2%9C%93",
@@ -139,28 +144,22 @@ mod tests {
         assert_eq!(expected, actual);
     }
 
-    #[test]
     #[should_panic(expected = "Error")]
-    fn throw_exception_to_read_nothing_file() {
-        let mut obj = ApiAgent::new();
+    it "should throw exception to read nothing file" {
 
         if let Err(e) = obj.read_file("This_is_nothing.txt") {
             panic!("Error: {}", e);
         }
     }
 
-    #[test]
-    fn read_file() {
-        let mut obj = ApiAgent::new();
+    it "should read file" {
 
         if let Err(e) = obj.read_file("access_key.txt") {
             panic!("Error: {}", e);
         }
     }
 
-    #[test]
-    fn is_not_have_newline_char_from_end() {
-        let mut obj = ApiAgent::new();
+    it "is not have newline char from end" {
 
         obj.read_access_key();
         let actual = &obj.access_key;
