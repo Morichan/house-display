@@ -85,6 +85,10 @@ impl ApiAgent {
         if let Err(e) = self.read_file(&self.access_key_file_path.to_string()) {
             panic!("Error: {}", e);
         }
+        let file_lines: Vec<&str> = self.access_key.split_whitespace().collect();
+        if let Some(line) = file_lines.get(0) {
+            self.access_key = line.to_string();
+        };
     }
 
     fn read_file(&mut self, filename: &str) -> Result<(), Box<Error>> {
@@ -152,5 +156,15 @@ mod tests {
         if let Err(e) = obj.read_file("access_key.txt") {
             panic!("Error: {}", e);
         }
+    }
+
+    #[test]
+    fn is_not_have_newline_char_from_end() {
+        let mut obj = ApiAgent::new();
+
+        obj.read_access_key();
+        let actual = &obj.access_key;
+
+        assert!(!actual.ends_with("\n"));
     }
 }
