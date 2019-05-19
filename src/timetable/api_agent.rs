@@ -50,7 +50,7 @@ impl ApiAgent {
 
     fn parse_train_time_list(&self, html: &str) -> Vec<TrainTime> {
         let fragment = Html::parse_fragment(html);
-        let selector = Selector::parse("p").unwrap();
+        let selector = Selector::parse(r#"p[class="candidate_list_txt"]"#).unwrap();
         let mut train_time_list: Vec<TrainTime> = Vec::new();
         let mut is_to_time = false;
 
@@ -345,6 +345,32 @@ speculate! {
               </table>
             </div>
         "#);
+
+        assert_eq!(expected, actual);
+    }
+
+    it "parse train time from sample HTML" {
+        let expected = vec![
+            TrainTime{
+                from: "16:28".to_string(),
+                to: "16:45".to_string(),
+            },
+            TrainTime{
+                from: "16:34".to_string(),
+                to: "16:51".to_string(),
+            },
+            TrainTime{
+                from: "16:40".to_string(),
+                to: "16:57".to_string(),
+            },
+            TrainTime{
+                from: "16:46".to_string(),
+                to: "17:03".to_string(),
+            },
+        ];
+        let html = fs::read_to_string("resources/ekispert_sample.html").unwrap();
+
+        let actual = obj.parse_train_time_list(&html);
 
         assert_eq!(expected, actual);
     }
