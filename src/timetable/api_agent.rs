@@ -188,6 +188,7 @@ speculate! {
         assert_eq!(expected, actual);
     }
 
+    #[ignore]
     it "should create Ekispert API URL" {
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
