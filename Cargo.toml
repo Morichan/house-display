@@ -10,6 +10,8 @@ reqwest = "0.9.16"
 url = "*"
 chrono = "*"
 serde_json = "1.0"
+scraper = "0.10.0"
+regex = "1"
 
 [dev-dependencies]
 speculate = "0.1"

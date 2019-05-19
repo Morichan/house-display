@@ -1,5 +1,6 @@
 extern crate reqwest;
 extern crate serde_json;
+extern crate regex;
 
 use std::io::Read;
 use url::Url;
@@ -7,12 +8,15 @@ use chrono::Local;
 use std::fs;
 use std::error::Error;
 use serde_json::Value;
+use scraper::{Html, Selector};
+use regex::Regex;
 
 pub struct ApiAgent {
     ekispert_url: String,
     ekispert_api: String,
     access_key: String,
     access_key_file_path: String,
+    time_regex: Regex,
 }
 
 impl ApiAgent {
@@ -22,6 +26,7 @@ impl ApiAgent {
             ekispert_api: "http://api.ekispert.jp/v1/json/search/course/light".to_string(),
             access_key: String::new(),
             access_key_file_path: "access_key.txt".to_string(),
+            time_regex: Regex::new(r"\d+:\d+").unwrap(),
         }
     }
 
@@ -41,6 +46,37 @@ impl ApiAgent {
             EkispertUrl::GettingFromAPI => self.create_url_to_use_api(),
             EkispertUrl::CreatingBasedOnWeb => self.create_url_to_scrape(),
         }
+    }
+
+    fn parse_train_time_list(&self, html: &str) -> Vec<TrainTime> {
+        let fragment = Html::parse_fragment(html);
+        let selector = Selector::parse("p").unwrap();
+        let mut train_time_list: Vec<TrainTime> = Vec::new();
+        let mut is_to_time = false;
+
+        for input in fragment.select(&selector) {
+            let candidate_list = input.text().collect::<Vec<_>>();
+            let mut train_time = TrainTime::new();
+
+            for time in candidate_list {
+                if self.time_regex.is_match(time) {
+                    let cap = self.time_regex.captures(time).unwrap();
+                    if is_to_time {
+                        train_time.to = format!("{}", &cap[0]).to_string();
+                        is_to_time = false;
+                    } else {
+                        train_time.from = format!("{}", &cap[0]).to_string();
+                        is_to_time = true;
+                    }
+                }
+            }
+
+            if train_time.from != "".to_string() {
+                train_time_list.push(train_time);
+            }
+        }
+
+        return train_time_list;
     }
 
     fn create_url_to_scrape(&self) -> String {
@@ -144,9 +180,21 @@ struct Now {
     min1: String,
 }
 
+#[derive(Debug)]
+pub struct TrainTime {
+    from: String,
+    to: String,
+}
+
 enum EkispertUrl {
     GettingFromAPI,
     CreatingBasedOnWeb,
+}
+
+impl TrainTime {
+    fn new() -> Self {
+        TrainTime{from: "".to_string(), to: "".to_string()}
+    }
 }
 
 #[cfg(test)]
@@ -154,6 +202,16 @@ extern crate speculate;
 
 #[cfg(test)]
 use speculate::speculate;
+
+#[cfg(test)]
+use std::cmp::PartialEq;
+
+#[cfg(test)]
+impl PartialEq for TrainTime {
+    fn eq(&self, other: &TrainTime) -> bool {
+        self.from == other.from && self.to == other.to
+    }
+}
 
 #[cfg(test)]
 speculate! {
@@ -241,5 +299,53 @@ speculate! {
         let actual = &obj.access_key;
 
         assert!(!actual.ends_with("\n"));
+    }
+
+    it "parse train time" {
+        let expected = vec![
+            TrainTime{
+                from: "16:28".to_string(),
+                to: "16:45".to_string(),
+            },
+        ];
+
+        let actual = obj.parse_train_time_list(
+            r#"<p class="candidate_list_txt">16:28 ⇒ <span class="orange_txt">16:45（17分）</span></p>"#);
+
+        assert_eq!(expected, actual);
+    }
+
+    it "parse train time candidate list" {
+        let expected = vec![
+            TrainTime{
+                from: "16:28".to_string(),
+                to: "16:45".to_string(),
+            },
+            TrainTime{
+                from: "16:34".to_string(),
+                to: "16:51".to_string(),
+            },
+        ];
+
+        let actual = obj.parse_train_time_list(r#"
+            <div class="candidate_list">
+              <table class="candidate_list_table tabs_content">
+                <tr>
+                  <td><p class="candidate_list_txt">16:28 ⇒ <span class="orange_txt">16:45（17分）</span></p>
+                    <p class="candidate_list_txt">乗換:<span class="orange_txt">0回</span></p>
+                    <p class="candidate_list_txt">片道:<span class="orange_txt">267円</span></p>
+                  </td>
+                </tr>
+                <tr>
+                  <td><p class="candidate_list_txt">16:34 ⇒ <span class="orange_txt">16:51（17分）</span></p>
+                    <p class="candidate_list_txt">乗換:<span class="orange_txt">0回</span></p>
+                    <p class="candidate_list_txt">片道:<span class="orange_txt">267円</span></p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+        "#);
+
+        assert_eq!(expected, actual);
     }
 }
