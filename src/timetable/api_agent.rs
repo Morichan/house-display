@@ -38,6 +38,12 @@ impl ApiAgent {
         resp.read_to_string(&mut s).unwrap();
         println!("{}", resp.url().as_str());
 
+        let times = self.parse_train_time_list(&s);
+
+        for time in times {
+            println!("{} -> {}", time.from, time.to);
+        }
+
         return s;
     }
 
