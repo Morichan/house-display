@@ -34,19 +34,25 @@ impl ApiAgent {
     }
 
     pub fn search_train_time(&mut self) -> String {
-        let mut resp = reqwest::get(&self.create_url(EkispertUrl::CreatingBasedOnWeb))
-            .unwrap();
-        let mut s = String::new();
+        let url = &self.create_url(EkispertUrl::CreatingBasedOnWeb);
+        let html = self.request_url(url);
 
-        resp.read_to_string(&mut s).unwrap();
-        println!("{}", resp.url().as_str());
-
-        self.train_times = self.parse_train_time_list(&s);
+        self.train_times = self.parse_train_time_list(&html);
 
         let ref times = self.train_times;
         for time in times {
             println!("{} -> {}", time.from, time.to);
         }
+
+        return html;
+    }
+
+    fn request_url(&self, url: &str) -> String {
+        let mut resp = reqwest::get(url)
+            .unwrap();
+        let mut s = String::new();
+
+        resp.read_to_string(&mut s).unwrap();
 
         return s;
     }
@@ -138,13 +144,9 @@ impl ApiAgent {
             .append_pair("date", &format!("{}{}", &now.year_and_month, &now.day))
             .append_pair("time", &format!("{}{}{}", &now.hour, &now.min10, &now.min1));
 
-        let mut resp = reqwest::get(api.as_str())
-            .unwrap();
-        let mut s = String::new();
+        let html = self.request_url(api.as_str());
 
-        resp.read_to_string(&mut s).unwrap();
-
-        let v: Value = serde_json::from_str(&s).unwrap();
+        let v: Value = serde_json::from_str(&html).unwrap();
 
         return v["ResultSet"]["ResourceURI"].to_string().replace('"', "");
     }
@@ -273,6 +275,7 @@ speculate! {
                 own.now_time().min1,
                 own.now_time().year_and_month,
                 own.now_time().day)));
+
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
                 "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
@@ -282,23 +285,31 @@ speculate! {
                 test_time.year_and_month,
                 test_time.day)).unwrap();
 
+
         let actual = Url::parse(&obj.create_url(EkispertUrl::GettingFromAPI))
             .unwrap();
+
 
         assert_eq!(expected, actual);
     }
 
     #[ignore]
     it "should search same web site" {
-        let mut resp = reqwest::get(&obj.create_url(EkispertUrl::CreatingBasedOnWeb))
-            .unwrap();
-        let mut expected = String::new();
-        resp.read_to_string(&mut expected).unwrap();
+        ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(format!(
+                "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
+                own.now_time().hour,
+                own.now_time().min10,
+                own.now_time().min1,
+                own.now_time().year_and_month,
+                own.now_time().day)));
 
-        let mut resp = reqwest::get(&obj.create_url(EkispertUrl::GettingFromAPI))
-            .unwrap();
-        let mut actual = String::new();
-        resp.read_to_string(&mut actual).unwrap();
+        let web_url = obj.create_url(EkispertUrl::CreatingBasedOnWeb);
+        let expected = obj.request_url(&web_url);
+
+
+        let api_url = obj.create_url(EkispertUrl::GettingFromAPI);
+        let actual = obj.request_url(&api_url);
+
 
         assert_eq!(expected, actual);
     }
