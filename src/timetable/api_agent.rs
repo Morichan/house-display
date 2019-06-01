@@ -17,7 +17,7 @@ pub struct ApiAgent {
     access_key: String,
     access_key_file_path: String,
     time_regex: Regex,
-    train_times: Vec<TrainTime>,
+    pub train_times: Vec<TrainTime>,
 }
 
 #[cfg_attr(test, mockable)]
@@ -33,18 +33,11 @@ impl ApiAgent {
         }
     }
 
-    pub fn search_train_time(&mut self) -> String {
+    pub fn search_train_time(&mut self) {
         let url = &self.create_url(EkispertUrl::CreatingBasedOnWeb);
         let html = self.request_url(url);
 
         self.train_times = self.parse_train_time_list(&html);
-
-        let ref times = self.train_times;
-        for time in times {
-            println!("{} -> {}", time.from, time.to);
-        }
-
-        return html;
     }
 
     fn request_url(&self, url: &str) -> String {
@@ -194,8 +187,8 @@ struct Now {
 
 #[derive(Debug)]
 pub struct TrainTime {
-    from: String,
-    to: String,
+    pub from: String,
+    pub to: String,
 }
 
 enum EkispertUrl {

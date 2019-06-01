@@ -8,7 +8,12 @@ pub use house_display::timetable::api_agent::ApiAgent;
 #[get("/")]
 fn index() -> String {
     let mut api = ApiAgent::new();
-    return api.search_train_time();
+    api.search_train_time();
+
+    let times: Vec<String> = api.train_times.iter().map(
+        |t| format!("{} -> {}", t.from, t.to)).collect::<Vec<_>>();
+
+    times.join("\n")
 }
 
 fn main() {
