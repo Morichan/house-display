@@ -17,8 +17,10 @@ pub struct ApiAgent {
     access_key: String,
     access_key_file_path: String,
     time_regex: Regex,
+    train_times: Vec<TrainTime>,
 }
 
+#[cfg_attr(test, mockable)]
 impl ApiAgent {
     pub fn new() -> Self {
         ApiAgent {
@@ -27,6 +29,7 @@ impl ApiAgent {
             access_key: String::new(),
             access_key_file_path: "access_key.txt".to_string(),
             time_regex: Regex::new(r"\d+:\d+").unwrap(),
+            train_times: Vec::new(),
         }
     }
 
@@ -38,8 +41,9 @@ impl ApiAgent {
         resp.read_to_string(&mut s).unwrap();
         println!("{}", resp.url().as_str());
 
-        let times = self.parse_train_time_list(&s);
+        self.train_times = self.parse_train_time_list(&s);
 
+        let ref times = self.train_times;
         for time in times {
             println!("{} -> {}", time.from, time.to);
         }
@@ -210,6 +214,15 @@ extern crate speculate;
 use speculate::speculate;
 
 #[cfg(test)]
+extern crate mocktopus;
+
+#[cfg(test)]
+use mocktopus::macros::mockable;
+
+#[cfg(test)]
+use mocktopus::mocking::*;
+
+#[cfg(test)]
 use std::cmp::PartialEq;
 
 #[cfg(test)]
@@ -252,8 +265,14 @@ speculate! {
         assert_eq!(expected, actual);
     }
 
-    #[ignore]
     it "should create Ekispert API URL" {
+        ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(format!(
+                "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
+                own.now_time().hour,
+                own.now_time().min10,
+                own.now_time().min1,
+                own.now_time().year_and_month,
+                own.now_time().day)));
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
                 "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
