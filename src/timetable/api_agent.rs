@@ -41,8 +41,7 @@ impl ApiAgent {
     }
 
     fn request_url(&self, url: &str) -> String {
-        let mut resp = reqwest::get(url)
-            .unwrap();
+        let mut resp = reqwest::get(url).unwrap();
         let mut s = String::new();
 
         resp.read_to_string(&mut s).unwrap();
@@ -95,8 +94,8 @@ impl ApiAgent {
         url.query_pairs_mut().clear()
             .append_pair("dep", "豊島園(都営線)")
             .append_pair("dep_code", "22836")
-            .append_pair("arr", "都庁前")
-            .append_pair("arr_code", "29213")
+            .append_pair("arr", "中野坂上")
+            .append_pair("arr_code", "22850")
 
             .append_pair("yyyymm", &now.year_and_month)
             .append_pair("day", &now.day)
@@ -133,7 +132,7 @@ impl ApiAgent {
         api.query_pairs_mut().clear()
             .append_pair("key", &self.access_key)
             .append_pair("from", "22836")
-            .append_pair("to", "29213")
+            .append_pair("to", "22850")
             .append_pair("date", &format!("{}{}", &now.year_and_month, &now.day))
             .append_pair("time", &format!("{}{}{}", &now.hour, &now.min10, &now.min1));
 
@@ -249,7 +248,7 @@ speculate! {
     it "should create Ekispert URL" {
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
-                "https://roote.ekispert.net/ja/result?dep=豊島園%28都営線%29&dep_code=22836&arr=都庁前&arr_code=29213&yyyymm={}&day={}&hour={}&minute10={}&minute1={}&locale=ja&connect=true&highway=true&liner=true&local=true&plane=true&shinkansen=true&ship=true&sort=time&submit_btn=検索&surcharge=3&ticket_type=0&transfer=2&type=dep&utf8=%E2%9C%93",
+                "https://roote.ekispert.net/ja/result?dep=豊島園%28都営線%29&dep_code=22836&arr=中野坂上&arr_code=22850&yyyymm={}&day={}&hour={}&minute10={}&minute1={}&locale=ja&connect=true&highway=true&liner=true&local=true&plane=true&shinkansen=true&ship=true&sort=time&submit_btn=検索&surcharge=3&ticket_type=0&transfer=2&type=dep&utf8=%E2%9C%93",
                 test_time.year_and_month,
                 test_time.day,
                 test_time.hour,

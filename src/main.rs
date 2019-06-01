@@ -10,8 +10,8 @@ fn index() -> String {
     let mut api = ApiAgent::new();
     api.search_train_time();
 
-    let times: Vec<String> = api.train_times.iter().map(
-        |t| format!("{} -> {}", t.from, t.to)).collect::<Vec<_>>();
+    let times: Vec<String> = api.train_times.iter()
+        .map(|t| format!("{} -> {}", t.from, t.to)).collect::<Vec<_>>();
 
     times.join("\n")
 }
