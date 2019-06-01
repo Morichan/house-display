@@ -199,6 +199,7 @@ pub struct TrainTime {
 }
 
 enum EkispertUrl {
+    #[allow(dead_code)]
     GettingFromAPI,
     CreatingBasedOnWeb,
 }
@@ -237,6 +238,7 @@ impl PartialEq for TrainTime {
 #[cfg(test)]
 speculate! {
     before {
+        #[allow(unused_mut)]
         let mut obj = ApiAgent::new();
     }
 
