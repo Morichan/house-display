@@ -293,7 +293,6 @@ speculate! {
         assert_eq!(expected, actual);
     }
 
-    #[ignore]
     it "should search same web site" {
         ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(format!(
                 "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
@@ -302,6 +301,8 @@ speculate! {
                 own.now_time().min1,
                 own.now_time().year_and_month,
                 own.now_time().day)));
+        ApiAgent::request_url.mock_safe(|_, _| MockResult::Return(
+                fs::read_to_string("resources/ekispert_sample.html").unwrap()));
 
         let web_url = obj.create_url(EkispertUrl::CreatingBasedOnWeb);
         let expected = obj.request_url(&web_url);
