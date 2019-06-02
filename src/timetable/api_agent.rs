@@ -150,7 +150,7 @@ impl ApiAgent {
 
         return Now {
             year_and_month: local_now.format("%Y%m").to_string(),
-            day: local_now.format("%-d").to_string(),
+            day: local_now.format("%0d").to_string(),
             hour: local_now.format("%-H").to_string(),
             min10: minutes.nth(0).unwrap().to_string(), // 10の位
             min1: minutes.nth(0).unwrap().to_string(), // 1の位
@@ -240,7 +240,7 @@ speculate! {
         let actual = obj.now_time();
 
         assert_eq!(expected.format("%Y%m").to_string(), actual.year_and_month);
-        assert_eq!(expected.format("%-d").to_string(), actual.day);
+        assert_eq!(expected.format("%0d").to_string(), actual.day);
         assert_eq!(expected.format("%-H").to_string(), actual.hour);
         assert_eq!(expected.format("%M").to_string(), format!("{}{}", actual.min10, actual.min1));
     }
@@ -288,6 +288,9 @@ speculate! {
     }
 
     it "should search same web site" {
+        ApiAgent::request_url.mock_safe(|_, _| MockResult::Return(
+                fs::read_to_string("resources/ekispert_sample.html").unwrap()));
+        // create_url_to_use_api()内でrequest_url()を呼出していることに注意
         ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(format!(
                 "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
                 own.now_time().hour,
@@ -295,8 +298,6 @@ speculate! {
                 own.now_time().min1,
                 own.now_time().year_and_month,
                 own.now_time().day)));
-        ApiAgent::request_url.mock_safe(|_, _| MockResult::Return(
-                fs::read_to_string("resources/ekispert_sample.html").unwrap()));
 
         let web_url = obj.create_url(EkispertUrl::CreatingBasedOnWeb);
         let expected = obj.request_url(&web_url);
