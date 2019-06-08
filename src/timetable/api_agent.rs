@@ -34,7 +34,7 @@ impl ApiAgent {
     }
 
     pub fn search_train_time(&mut self) {
-        let url = &self.create_url(EkispertUrl::CreatingBasedOnWeb);
+        let url = &self.create_url(EkispertUrl::CreatingBasedOnWeb).unwrap();
         let html = self.request_url(url);
 
         self.train_times = self.parse_train_time_list(&html);
@@ -49,10 +49,10 @@ impl ApiAgent {
         return s;
     }
 
-    fn create_url(&mut self, url: EkispertUrl) -> String {
+    fn create_url(&mut self, url: EkispertUrl) -> Result<String, String> {
         match url {
             EkispertUrl::GettingFromAPI => self.create_url_to_use_api(),
-            EkispertUrl::CreatingBasedOnWeb => self.create_url_to_scrape(),
+            EkispertUrl::CreatingBasedOnWeb => Ok(self.create_url_to_scrape()),
         }
     }
 
@@ -123,7 +123,7 @@ impl ApiAgent {
         return String::from(url.as_str());
     }
 
-    fn create_url_to_use_api(&mut self) -> String {
+    fn create_url_to_use_api(&mut self) -> Result<String, String> {
         let mut api = Url::parse(&self.ekispert_api).unwrap();
         let now = self.now_time();
 
@@ -140,7 +140,10 @@ impl ApiAgent {
 
         let v: Value = serde_json::from_str(&html).unwrap();
 
-        return v["ResultSet"]["ResourceURI"].to_string().replace('"', "");
+        match v["ResultSet"]["ResourceURI"].as_null() {
+            Some(_) => Err(v["ResultSet"]["Error"]["Message"].to_string().replace('"', "")),
+            None => Ok(v["ResultSet"]["ResourceURI"].to_string().replace('"', "")),
+        }
     }
 
     fn now_time(&self) -> Now {
@@ -255,20 +258,20 @@ speculate! {
                 test_time.min10,
                 test_time.min1)).unwrap();
 
-        let actual = Url::parse(&obj.create_url(EkispertUrl::CreatingBasedOnWeb))
+        let actual = Url::parse(&obj.create_url(EkispertUrl::CreatingBasedOnWeb).unwrap())
             .unwrap();
 
         assert_eq!(expected, actual);
     }
 
     it "should create Ekispert API URL" {
-        ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(format!(
+        ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(Ok(format!(
                 "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
                 own.now_time().hour,
                 own.now_time().min10,
                 own.now_time().min1,
                 own.now_time().year_and_month,
-                own.now_time().day)));
+                own.now_time().day))));
 
         let test_time = obj.now_time();
         let expected = Url::parse(&format!(
@@ -280,7 +283,7 @@ speculate! {
                 test_time.day)).unwrap();
 
 
-        let actual = Url::parse(&obj.create_url(EkispertUrl::GettingFromAPI))
+        let actual = Url::parse(&obj.create_url(EkispertUrl::GettingFromAPI).unwrap())
             .unwrap();
 
 
@@ -291,19 +294,19 @@ speculate! {
         ApiAgent::request_url.mock_safe(|_, _| MockResult::Return(
                 fs::read_to_string("resources/ekispert_sample.html").unwrap()));
         // create_url_to_use_api()内でrequest_url()を呼出していることに注意
-        ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(format!(
+        ApiAgent::create_url_to_use_api.mock_safe(|own| MockResult::Return(Ok(format!(
                 "https://roote.ekispert.net/result?arr=%E9%83%BD%E5%BA%81%E5%89%8D&arr_code=29213&connect=true&dep=%E8%B1%8A%E5%B3%B6%E5%9C%92(%E9%83%BD%E5%96%B6%E7%B7%9A)&dep_code=22836&express=true&highway=true&hour={}&liner=true&local=true&minute={}{}&plane=true&shinkansen=true&ship=true&sleep=false&sort=time&surcharge=3&type=dep&via1=&via1_code=&via2=&via2_code=&yyyymmdd={}{}",
                 own.now_time().hour,
                 own.now_time().min10,
                 own.now_time().min1,
                 own.now_time().year_and_month,
-                own.now_time().day)));
+                own.now_time().day))));
 
-        let web_url = obj.create_url(EkispertUrl::CreatingBasedOnWeb);
+        let web_url = obj.create_url(EkispertUrl::CreatingBasedOnWeb).unwrap();
         let expected = obj.request_url(&web_url);
 
 
-        let api_url = obj.create_url(EkispertUrl::GettingFromAPI);
+        let api_url = obj.create_url(EkispertUrl::GettingFromAPI).unwrap();
         let actual = obj.request_url(&api_url);
 
 
@@ -405,5 +408,28 @@ speculate! {
         let actual = obj.parse_train_time_list(&html);
 
         assert_eq!(expected, actual);
+    }
+
+    it "extract error message from API responce" {
+        ApiAgent::request_url.mock_safe(|_, _| MockResult::Return(
+                r#"
+                {
+                    "ResultSet":
+                    {
+                        "apiVersion":"1.27.0.0",
+                        "engineVersion":"",
+                        "Error":
+                        {
+                            "code":"W400",
+                            "Message":"dateの値(2019062)が間違っています。日付(YYYYMMDD)を入力することができます。"
+                        }
+                    }
+                }"#.to_string()));
+        let expected = "dateの値(2019062)が間違っています。日付(YYYYMMDD)を入力することができます。".to_string();
+
+        match obj.create_url(EkispertUrl::GettingFromAPI) {
+            Ok(ng) => panic!(ng),
+            Err(actual) => assert_eq!(expected, actual),
+        }
     }
 }
